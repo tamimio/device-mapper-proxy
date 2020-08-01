@@ -1,5 +1,6 @@
 #include <linux/device-mapper.h>
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/bio.h>
@@ -30,7 +31,7 @@ static struct dmp_statistics dmp_stats = {
   .wr_avg_sz=0,
   .rd_avg_sz=0,
   .total_cnt=0,
-  .total_avg_sz=0;
+  .total_avg_sz=0
 };
 
 /* ------------------------------------------------------------ ctr, dtr, map */
@@ -41,6 +42,25 @@ static struct dmp_statistics dmp_stats = {
  */
 static int dmp_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
+  struct dm_dev *device;
+  /* check arguments */
+  if (argc != 2)
+  {
+    printk(KERN_CRIT "\n Invalid number of arguments.\n");
+    ti->error = "Invalid argument count";
+    return -EINVAL;
+  }
+  
+  /* getting the permissions of device mapper table
+   * (which gets created after dmsetup create) */
+  if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &device))
+  {
+    ti->error = "Device lookup failed";
+    return -EINVAL;
+  }
+  ti->private = device;
+  
+  /* init */
   dmp_stats.wr_cnt=0;
   dmp_stats.rd_cnt=0;
   dmp_stats.wr_avg_sz=0;
@@ -59,6 +79,8 @@ static int dmp_ctr(struct dm_target *ti, unsigned int argc, char **argv)
  */
 static void dmp_dtr(struct dm_target *ti)
 {
+  struct dm_dev *device = (struct dm_dev *) ti->private;
+  dm_put_device(ti, device);
   printk(KERN_ALERT "dmp destructed\n");
   return;
 }
@@ -68,24 +90,32 @@ static void dmp_dtr(struct dm_target *ti)
  */
 static int dmp_map(struct dm_target *ti, struct bio *bio)
 {
+  struct dm_dev *device = (struct dm_dev *) ti->private;
+  bio_set_dev(bio, device->bdev);/*bio->bi_bdev = device->bdev;*/
+  
+  unsigned long int bi_size=0;
+  /*if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))*/
+    bi_size = bio->bi_iter.bi_size;
+  
   /* switch type of operation */
 	switch (bio_op(bio))
   {
     case REQ_OP_READ:
       dmp_stats.rd_cnt++;
-      dmp_stats.rd_avg_sz += bio.bi_size - dmp_stats.rd_avg_sz; /* ? */
+      dmp_stats.rd_avg_sz += bi_size - dmp_stats.rd_avg_sz; /* ? */
       break;
     case REQ_OP_WRITE:
       dmp_stats.wr_cnt++;
-      dmp_stats.wr_avg_sz += bio.bi_size - dmp_stats.wr_avg_sz;
+      dmp_stats.wr_avg_sz += bi_size - dmp_stats.wr_avg_sz;
       break;
     default:
       return DM_MAPIO_KILL;
 	}
   
-  dmp_stats.total cnt += dmp_stats.rd_cnt + dmp_stats.wr_cnt;
-  dmp_stats.total_avg_sz += (bio_size - dmp_stats.total_avg_sz) / dmp_stats.total_cnt;
+  dmp_stats.total_cnt += dmp_stats.rd_cnt + dmp_stats.wr_cnt;
+  dmp_stats.total_avg_sz += (bi_size - dmp_stats.total_avg_sz) / dmp_stats.total_cnt;
   
+  submit_bio(bio);
   bio_endio(bio);
 	/* accepted bio, don't make new request */
 	return DM_MAPIO_SUBMITTED;
