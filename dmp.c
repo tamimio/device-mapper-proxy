@@ -34,6 +34,33 @@ static struct dmp_statistics dmp_stats = {
   .total_avg_sz=0
 };
 
+/* ---------------------------------------------------------------- show data */
+/* 
+ * show() operation for sysfs attribute (file)
+ */
+static ssize_t param_show(struct device *dev,
+                          struct device_attribute *attr, char *buf)
+{
+  struct dm_dev *device;
+  int len;
+
+  len = sprintf(buf,
+"\nread\n\
+  requests:%ld\n\
+  avg size:%ld\n\
+write\n\
+  requests:%ld\n\
+  avg size:%ld\n\
+total\n\
+  requests:%ld\n\
+  avg size:%ld\n", dmp_stats.rd_cnt,
+                   dmp_stats.rd_avg_sz,
+                   dmp_stats.wr_cnt,
+                   dmp_stats.wr_avg_sz,
+                   dmp_stats.total_cnt
+                   dmp_stats.total_avg_sz);
+  return len;
+}
 /* ------------------------------------------------------------ ctr, dtr, map */
 /*
  * ctr
