@@ -1,5 +1,6 @@
 #include <linux/device-mapper.h>
 
+#include <linux/kobject.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -22,7 +23,7 @@ struct dmp_statistics
                     wr_avg_sz, /* average size of block to write */
                     rd_avg_sz, /* average size of block to read */
                     total_cnt, /* total number of requests */
-                    total_avg_sz; /* average size of block */
+                    total_avg_sz /* average size of block */
 };
 
 static struct dmp_statistics dmp_stats = {
@@ -34,12 +35,12 @@ static struct dmp_statistics dmp_stats = {
   .total_avg_sz=0
 };
 
-/* ---------------------------------------------------------------- show data */
+/* ---------------------------------------------------------- show(), store() */
 /* 
  * show() operation for sysfs attribute (file)
  */
-static ssize_t param_show(struct device *dev,
-                          struct device_attribute *attr, char *buf)
+static ssize_t param_show(struct kobject *kobj,
+                          struct kobj_attribute *attr, char *buf)
 {
   struct dm_dev *device;
   int len;
@@ -57,10 +58,15 @@ total\n\
                    dmp_stats.rd_avg_sz,
                    dmp_stats.wr_cnt,
                    dmp_stats.wr_avg_sz,
-                   dmp_stats.total_cnt
+                   dmp_stats.total_cnt,
                    dmp_stats.total_avg_sz);
   return len;
 }
+/* linking show(), store() is NULL */
+static struct kobj_attribute dmpstats_attr = 
+    __ATTR(dmpstats, 0440, param_show, NULL);
+
+static struct kobject* dmpstats_kobj;
 /* ------------------------------------------------------------ ctr, dtr, map */
 /*
  * ctr
@@ -118,9 +124,9 @@ static void dmp_dtr(struct dm_target *ti)
 static int dmp_map(struct dm_target *ti, struct bio *bio)
 {
   struct dm_dev *device = (struct dm_dev *) ti->private;
+  unsigned long int bi_size=0;
   bio_set_dev(bio, device->bdev);/*bio->bi_bdev = device->bdev;*/
   
-  unsigned long int bi_size=0;
   /*if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))*/
     bi_size = bio->bi_iter.bi_size;
   
