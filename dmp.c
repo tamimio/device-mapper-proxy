@@ -135,11 +135,11 @@ static int dmp_map(struct dm_target *ti, struct bio *bio)
   {
     case REQ_OP_READ:
       dmp_stats.rd_cnt++;
-      dmp_stats.rd_avg_sz += bi_size - dmp_stats.rd_avg_sz; /* ? */
+      dmp_stats.rd_avg_sz += (bi_size - dmp_stats.rd_avg_sz) / dmp_stats.rd_cnt; 
       break;
     case REQ_OP_WRITE:
       dmp_stats.wr_cnt++;
-      dmp_stats.wr_avg_sz += bi_size - dmp_stats.wr_avg_sz;
+      dmp_stats.wr_avg_sz += (bi_size - dmp_stats.wr_avg_sz) / dmp_stats.wr_cnt;
       break;
     default:
       return DM_MAPIO_KILL;
