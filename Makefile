@@ -24,3 +24,6 @@ test: clean install setup
 	sudo dd if=/dev/random of=/dev/mapper/dmproxy bs=4k count=1
 	sudo dd of=/dev/null if=/dev/mapper/dmproxy bs=4k count=1
 	cat /sys/module/dmproxy/stat/volumes
+	
+fio: clean install setup
+	fio block.fio --filename=/dev/mapper/dmp

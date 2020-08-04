@@ -1,0 +1,12 @@
+[write-and-verify]
+thread
+readwrite=rw
+bs=16k
+direct=1
+iodepth=1
+ioengine=libaio
+verify=meta
+verify_pattern=0xfafbfcfdfefafbfc
+verify_dump=1
+random_generator=lfsr
+size=100%

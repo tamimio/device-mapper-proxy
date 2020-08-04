@@ -8,7 +8,7 @@
 
 #define DM_MSG_PREFIX "dmp"
 
-MODULE_DESCRIPTION(DM_NAME "Device mapper proxy");
+MODULE_DESCRIPTION(DM_NAME " Device mapper proxy");
 MODULE_LICENSE("GPL");
 
 /* --------------------------------------------------------------- local data */
@@ -23,7 +23,7 @@ struct dmp_statistics
                     wr_avg_sz, /* average size of block to write */
                     rd_avg_sz, /* average size of block to read */
                     total_cnt, /* total number of requests */
-                    total_avg_sz /* average size of block */
+                    total_avg_sz; /* average size of block */
 };
 
 static struct dmp_statistics dmp_stats = {
@@ -42,7 +42,6 @@ static struct dmp_statistics dmp_stats = {
 static ssize_t param_show(struct kobject *kobj,
                           struct kobj_attribute *attr, char *buf)
 {
-  struct dm_dev *device;
   int len;
 
   len = sprintf(buf,
@@ -125,10 +124,12 @@ static int dmp_map(struct dm_target *ti, struct bio *bio)
 {
   struct dm_dev *device = (struct dm_dev *) ti->private;
   unsigned long int bi_size=0;
+  unsigned long n_sect = bio_sectors(bio);
   bio_set_dev(bio, device->bdev);/*bio->bi_bdev = device->bdev;*/
   
   /*if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))*/
-    bi_size = bio->bi_iter.bi_size;
+  //bi_size = bio->bi_iter.bi_size;
+  bi_size = n_sect*512;
   
   /* switch type of operation */
 	switch (bio_op(bio))
@@ -174,7 +175,17 @@ static struct target_type dmp_target = {
  */
 static int __init dmp_init(void)
 {
-	int r = dm_register_target(&dmp_target);
+  int r;
+	struct kobject mod_ko = (((struct module*)(THIS_MODULE))->mkobj).kobj;
+	dmpstats_kobj = kobject_create_and_add("dmpstat", &mod_ko);
+	if (sysfs_create_file(dmpstats_kobj, &dmpstats_attr.attr))
+	{
+		sysfs_remove_file(dmpstats_kobj, &dmpstats_attr.attr);
+		kobject_put(dmpstats_kobj);
+		return -1;
+	}  
+  
+	r = dm_register_target(&dmp_target);
 
 	if (r < 0)
 		DMERR("loading dmp failed: %d", r);
@@ -191,6 +202,10 @@ static int __init dmp_init(void)
 static void __exit dmp_exit(void)
 {
 	dm_unregister_target(&dmp_target);
+  
+	sysfs_remove_file(dmpstats_kobj, &dmpstats_attr.attr);
+	kobject_put(dmpstats_kobj);
+  
   printk(KERN_ALERT "dmp is removed from the kernel\n");
   return;
 }
