@@ -17,7 +17,7 @@ MODULE_DESCRIPTION(DM_NAME " Device mapper proxy");
  */
 struct dmp_statistics
 {
-  unsigned long int wr_cnt,    /* number of write requests */
+  unsigned long long int wr_cnt,    /* number of write requests */
                     rd_cnt,    /* number of read requests */
                     wr_avg_sz, /* average size of block to write */
                     rd_avg_sz, /* average size of block to read */
@@ -45,14 +45,14 @@ static ssize_t param_show(struct kobject *kobj,
 
   len = sprintf(buf,
 "\nread\n\
-  requests:%ld\n\
-  avg size:%ld\n\
+  requests:%lld\n\
+  avg size:%lld\n\
 write\n\
-  requests:%ld\n\
-  avg size:%ld\n\
+  requests:%lld\n\
+  avg size:%lld\n\
 total\n\
-  requests:%ld\n\
-  avg size:%ld\n", dmp_stats.rd_cnt,
+  requests:%lld\n\
+  avg size:%lld\n", dmp_stats.rd_cnt,
                    dmp_stats.rd_avg_sz,
                    dmp_stats.wr_cnt,
                    dmp_stats.wr_avg_sz,
@@ -121,9 +121,7 @@ static void dmp_dtr(struct dm_target *ti)
 static int dmp_map(struct dm_target *ti, struct bio *bio)
 {
   struct dm_dev *device = (struct dm_dev *) ti->private;
-  unsigned long int bi_size=0;
-  unsigned long n_sect = bio_sectors(bio);
-  bi_size = n_sect*512;
+  unsigned long long int bi_size= bio_sectors(bio)*512; /* n_sect*512 */
   
   /* switch type of operation */
 	switch (bio_op(bio))
@@ -140,7 +138,7 @@ static int dmp_map(struct dm_target *ti, struct bio *bio)
       return DM_MAPIO_KILL;
 	}
   
-  dmp_stats.total_cnt += dmp_stats.rd_cnt + dmp_stats.wr_cnt;
+  dmp_stats.total_cnt = dmp_stats.rd_cnt + dmp_stats.wr_cnt;
   dmp_stats.total_avg_sz += (bi_size - dmp_stats.total_avg_sz) / dmp_stats.total_cnt;
 
   bio_set_dev(bio, device->bdev);  
@@ -201,8 +199,7 @@ static int __init dmp_init(void)
  */
 static void __exit dmp_exit(void)
 {
-	dm_unregister_target(&dmp_target);
-  
+	dm_unregister_target(&dmp_target);  
 	sysfs_remove_file(dmpstats_kobj, &dmpstats_attr.attr);
 	kobject_put(dmpstats_kobj);
   
