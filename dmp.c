@@ -62,7 +62,7 @@ total\n\
 }
 /* linking show(), store() is NULL */
 static struct kobj_attribute dmpstats_attr = 
-    __ATTR(op_stat, 0440, param_show, NULL);
+    __ATTR(dmpstats, 0440, param_show, NULL);
 
 static struct kobject* dmpstats_kobj;
 /* ------------------------------------------------------------ ctr, dtr, map */
@@ -172,7 +172,12 @@ static int __init dmp_init(void)
 {
   int r;
 	struct kobject mod_ko = (((struct module*)(THIS_MODULE))->mkobj).kobj;
-	dmpstats_kobj = kobject_create_and_add("dmpstat", &mod_ko);
+	dmpstats_kobj = kobject_create_and_add("stat", &mod_ko);
+	if (!dmpstats_kobj)
+	{
+		DMERR("creating stat directory failed");
+		return -ENOMEM;
+	}
 	if (sysfs_create_file(dmpstats_kobj, &dmpstats_attr.attr))
 	{
 		sysfs_remove_file(dmpstats_kobj, &dmpstats_attr.attr);
