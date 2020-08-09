@@ -9,7 +9,6 @@
 #define DM_MSG_PREFIX "dmp"
 
 MODULE_DESCRIPTION(DM_NAME " Device mapper proxy");
-MODULE_LICENSE("GPL");
 
 /* --------------------------------------------------------------- local data */
 /* 
@@ -63,7 +62,7 @@ total\n\
 }
 /* linking show(), store() is NULL */
 static struct kobj_attribute dmpstats_attr = 
-    __ATTR(dmpstats, 0440, param_show, NULL);
+    __ATTR(op_stat, 0440, param_show, NULL);
 
 static struct kobject* dmpstats_kobj;
 /* ------------------------------------------------------------ ctr, dtr, map */
@@ -78,7 +77,7 @@ static int dmp_ctr(struct dm_target *ti, unsigned int argc, char **argv)
   /* check arguments */
   if (argc != 2)
   {
-    printk(KERN_CRIT "\n Invalid number of arguments.\n");
+    //printk(KERN_CRIT "\n Invalid number of arguments.\n");
     ti->error = "Invalid argument count";
     return -EINVAL;
   }
@@ -100,7 +99,7 @@ static int dmp_ctr(struct dm_target *ti, unsigned int argc, char **argv)
   dmp_stats.total_cnt=0;
   dmp_stats.total_avg_sz=0;
   
-  printk(KERN_ALERT "dmp constructed\n");
+  DMINFO("dmp constructed\n");
 	return 0; /* success */
 }
 
@@ -113,8 +112,7 @@ static void dmp_dtr(struct dm_target *ti)
 {
   struct dm_dev *device = (struct dm_dev *) ti->private;
   dm_put_device(ti, device);
-  printk(KERN_ALERT "dmp destructed\n");
-  return;
+  DMINFO("dmp destructed\n");
 }
 /*
  * map
@@ -125,10 +123,6 @@ static int dmp_map(struct dm_target *ti, struct bio *bio)
   struct dm_dev *device = (struct dm_dev *) ti->private;
   unsigned long int bi_size=0;
   unsigned long n_sect = bio_sectors(bio);
-  bio_set_dev(bio, device->bdev);/*bio->bi_bdev = device->bdev;*/
-  
-  /*if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))*/
-  //bi_size = bio->bi_iter.bi_size;
   bi_size = n_sect*512;
   
   /* switch type of operation */
@@ -148,9 +142,10 @@ static int dmp_map(struct dm_target *ti, struct bio *bio)
   
   dmp_stats.total_cnt += dmp_stats.rd_cnt + dmp_stats.wr_cnt;
   dmp_stats.total_avg_sz += (bi_size - dmp_stats.total_avg_sz) / dmp_stats.total_cnt;
-  
+
+  bio_set_dev(bio, device->bdev);  
   submit_bio(bio);
-  bio_endio(bio);
+  /*bio_endio(bio);*/
 	/* accepted bio, don't make new request */
 	return DM_MAPIO_SUBMITTED;
 }
@@ -190,7 +185,7 @@ static int __init dmp_init(void)
 	if (r < 0)
 		DMERR("loading dmp failed: %d", r);
   else
-    printk(KERN_ALERT "dmp is loaded to the kernel successfully\n");
+	DMINFO("dmp is loaded to the kernel successfully\n");
 
 	return r;
 }
@@ -206,10 +201,12 @@ static void __exit dmp_exit(void)
 	sysfs_remove_file(dmpstats_kobj, &dmpstats_attr.attr);
 	kobject_put(dmpstats_kobj);
   
-  printk(KERN_ALERT "dmp is removed from the kernel\n");
+  DMINFO("dmp is removed from the kernel\n");
   return;
 }
 
 /* linking init and exit */
 module_init(dmp_init)
 module_exit(dmp_exit)
+
+MODULE_LICENSE("GPL");

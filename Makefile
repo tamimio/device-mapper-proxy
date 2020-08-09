@@ -11,8 +11,8 @@ install: all
 	sudo insmod dmp.ko
 	
 setup:
-	sudo dmsetup create zero1  --table "0 512 zero"
-	sudo dmsetup create dmproxy --table "0 512 dmp /dev/mapper/zero1 0"
+	sudo dmsetup create zero1  --table "0 1024 zero"
+	sudo dmsetup create dmproxy --table "0 1024 dmp /dev/mapper/zero1 0"
 	ls -al /dev/mapper/*
 
 unload:
